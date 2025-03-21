@@ -53,9 +53,9 @@ with st.sidebar:
     d_mm = None
     Q_LPM = None
     
-    if calculation_type in ["Diameter", "Flow Rate", "Tube Length", "Inlet Pressure", "Outlet Pressure"]:
+    if calculation_type in ["Diameter", "Flow Rate", "Tube Length", "Inlet Pressure"]:
         Pin_bar = st.number_input("Inlet Pressure (bar):", min_value=0.1, value=25.0)
-    if calculation_type in ["Diameter", "Flow Rate", "Tube Length", "Inlet Pressure", "Outlet Pressure"]:
+    if calculation_type in ["Diameter", "Flow Rate", "Tube Length", "Outlet Pressure"]:
         Pout_bar = st.number_input("Outlet Pressure (bar):", min_value=0.1, value=10.0)
     if calculation_type in ["Diameter", "Flow Rate", "Tube Length"]:
         L = st.number_input("Tube Length (m):", min_value=0.1, value=50.0)
