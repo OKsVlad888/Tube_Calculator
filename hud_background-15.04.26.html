@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000d0d;font-family:'Courier New',monospace}
+
+/* Grid background */
+.grid-bg{
+  position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(0,229,204,0.035) 1px, transparent 1px),
+    linear-gradient(90deg,rgba(0,229,204,0.035) 1px, transparent 1px);
+  background-size:50px 50px;
+  pointer-events:none;z-index:0;
+}
+
+/* CRT scanlines */
+.scanlines{
+  position:fixed;inset:0;
+  background:repeating-linear-gradient(
+    to bottom,transparent 0,transparent 3px,
+    rgba(0,229,204,0.012) 3px,rgba(0,229,204,0.012) 4px);
+  pointer-events:none;z-index:1;
+}
+
+/* Main canvas */
+#hud-canvas{position:fixed;inset:0;z-index:2;pointer-events:none}
+
+/* Corner brackets */
+.corner{position:fixed;width:55px;height:55px;border-color:rgba(0,229,204,0.55);border-style:solid;z-index:3;pointer-events:none}
+.corner.tl{top:8px;left:8px;border-width:2px 0 0 2px}
+.corner.tr{top:8px;right:8px;border-width:2px 2px 0 0}
+.corner.bl{bottom:8px;left:8px;border-width:0 0 2px 2px}
+.corner.br{bottom:8px;right:8px;border-width:0 2px 2px 0}
+
+/* Data overlay elements */
+.hud-txt{
+  position:fixed;font-family:'Courier New',monospace;
+  color:rgba(0,229,204,0.7);pointer-events:none;z-index:3;
+  line-height:1.55;
+}
+.hud-label{
+  font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  color:rgba(0,229,204,0.4);display:block;
+}
+.hud-val{font-size:22px;font-weight:bold;color:#00ffee;display:block;text-shadow:0 0 10px rgba(0,229,204,0.6)}
+.hud-val-sm{font-size:13px;color:rgba(0,229,204,0.8)}
+
+/* Top-left data cluster */
+#dp-tl{top:70px;left:20px;font-size:11px}
+
+/* Top-center extract data */
+#dp-tc{top:12px;left:50%;transform:translateX(-40%);font-size:10px;white-space:nowrap}
+
+/* Top-right info block */
+#dp-tr{top:70px;right:20px;text-align:right;max-width:200px;font-size:10px}
+
+/* Mid-right stats */
+#dp-mr{top:50%;right:20px;transform:translateY(-50%);text-align:right}
+
+/* Bottom-left binary scroll */
+#dp-bl{bottom:35px;left:20px;font-size:9px;color:rgba(0,229,204,0.4);width:180px;line-height:1.4}
+
+/* Tracking target bottom */
+#dp-track{bottom:35px;left:20px;top:auto}
+
+/* Bottom-right bar chart label */
+#dp-br{bottom:80px;right:20px;font-size:9px;color:rgba(0,229,204,0.5);text-align:right}
+
+/* Rotating star */
+.spin-star{
+  position:fixed;left:12px;top:50%;transform:translateY(-50%);
+  font-size:36px;color:rgba(0,229,204,0.35);
+  animation:starSpin 10s linear infinite;z-index:3;pointer-events:none;
+  text-shadow:0 0 12px rgba(0,229,204,0.3);
+}
+@keyframes starSpin{from{transform:translateY(-50%) rotate(0deg)}to{transform:translateY(-50%) rotate(360deg)}}
+
+/* Blinking indicator */
+.blink{animation:blink 0.9s step-end infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* Progress rings (SVG) */
+#ring-container{
+  position:fixed;right:22px;top:50%;transform:translateY(-50%);
+  z-index:3;pointer-events:none;text-align:right;
+}
+
+/* Horizontal data bars (top-center) */
+.xbar-track{
+  display:inline-block;width:10px;height:55px;
+  background:rgba(0,229,204,0.08);border:1px solid rgba(0,229,204,0.2);
+  vertical-align:bottom;margin:0 1px;position:relative;overflow:hidden;
+}
+.xbar-fill{
+  position:absolute;bottom:0;left:0;width:100%;
+  background:rgba(0,229,204,0.7);
+  transition:height 0.6s ease;
+}
+
+/* Access point label */
+#dp-access{top:140px;left:20px;font-size:9px}
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="scanlines"></div>
+
+<!-- Corner brackets -->
+<div class="corner tl"></div>
+<div class="corner tr"></div>
+<div class="corner bl"></div>
+<div class="corner br"></div>
+
+<!-- Rotating star element (left middle) -->
+<div class="spin-star">&#10022;</div>
+
+<!-- Top-left data cluster -->
+<div class="hud-txt" id="dp-tl">
+  <span class="hud-label">Data Channel Identification</span>
+  <span class="hud-val" id="dv-main">89</span>
+  <div style="margin-top:4px;display:flex;gap:6px;align-items:center">
+    <span id="dv-circle"></span>
+    <span class="blink" style="color:#00e5cc;font-size:10px">&#11044;</span>
+  </div>
+  <div style="margin-top:8px">
+    <span class="hud-label">Data Channel Identification</span>
+    <span class="hud-val" id="dv-33">33</span>
+  </div>
+  <div style="margin-top:4px;display:flex;gap:10px">
+    <span style="color:#00ffee;font-size:12px" id="dv-31">31</span>
+    <span style="color:rgba(0,229,204,0.6);font-size:12px" id="dv-29a">29</span>
+    <span style="color:rgba(0,229,204,0.6);font-size:12px" id="dv-29b">29</span>
+  </div>
+  <div style="display:flex;gap:10px;font-size:11px;color:rgba(0,229,204,0.5)">
+    <span id="dv-26">26</span><span>57</span><span>39</span>
+  </div>
+</div>
+
+<!-- Access point label -->
+<div class="hud-txt" id="dp-access">
+  <span class="hud-label">Access Point</span>
+  <div style="font-size:9px;color:rgba(0,229,204,0.45);max-width:120px;margin-top:2px">
+    Lorem ipsum dolor sit amet lorem
+  </div>
+  <div style="margin-top:6px;font-size:9px;color:rgba(0,229,204,0.3)">
+    SCANNING DATA <span class="blink">▮</span><br>SCANNING DATA
+  </div>
+</div>
+
+<!-- Top-center: EXTRACT DATA + bars -->
+<div class="hud-txt" id="dp-tc">
+  <span class="hud-label" style="font-size:8px">Data Channel Identification</span>
+  <div style="margin-top:2px;display:flex;gap:3px;align-items:flex-end">
+    <span style="font-size:13px;color:#00ffee;margin-right:6px" id="dv-tc-num">26</span>
+    <div class="xbar-track"><div class="xbar-fill" id="xb0" style="height:60%"></div></div>
+    <div class="xbar-track"><div class="xbar-fill" id="xb1" style="height:40%"></div></div>
+    <div class="xbar-track"><div class="xbar-fill" id="xb2" style="height:75%"></div></div>
+    <div class="xbar-track"><div class="xbar-fill" id="xb3" style="height:50%"></div></div>
+    <div class="xbar-track"><div class="xbar-fill" id="xb4" style="height:85%"></div></div>
+    <div class="xbar-track"><div class="xbar-fill" id="xb5" style="height:35%"></div></div>
+    <div class="xbar-track"><div class="xbar-fill" id="xb6" style="height:65%"></div></div>
+    <span style="font-size:10px;color:rgba(0,229,204,0.5);margin-left:6px">
+      &#9608; EXTRACT DATA
+    </span>
+  </div>
+  <div style="margin-top:3px;display:flex;gap:18px;font-size:11px;color:rgba(0,229,204,0.55)">
+    <span id="dv-tc2">29</span><span id="dv-tc3">57</span><span id="dv-tc4">39</span>
+  </div>
+</div>
+
+<!-- Top-right: Lorem ipsum info block -->
+<div class="hud-txt" id="dp-tr">
+  <div style="font-size:20px;font-weight:bold;color:#00ffee;text-shadow:0 0 12px rgba(0,229,204,0.6);letter-spacing:3px">
+    LOREM IPSUM
+  </div>
+  <div style="font-size:9px;color:rgba(0,229,204,0.4);margin-top:3px;max-width:190px;text-align:right">
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+  </div>
+  <div style="margin-top:4px;font-size:9px;color:rgba(0,229,204,0.6)">
+    <span style="color:#00e5cc">▶▶▶</span> DATA X54
+  </div>
+</div>
+
+<!-- Mid-right: stat values + rings -->
+<div id="ring-container">
+  <span class="hud-val" id="dv-mr1" style="font-size:32px">75</span>
+  <div style="font-size:8px;color:rgba(0,229,204,0.4);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px">
+    Data Channel<br>Identification
+  </div>
+  <div style="margin:8px 0;display:flex;justify-content:flex-end">
+    <svg width="46" height="46" viewBox="0 0 46 46" id="ring-svg1">
+      <circle cx="23" cy="23" r="19" fill="none" stroke="rgba(0,229,204,0.15)" stroke-width="4"/>
+      <circle cx="23" cy="23" r="19" fill="none" stroke="#00e5cc" stroke-width="4"
+        stroke-dasharray="60 60" stroke-dashoffset="14"
+        stroke-linecap="round" id="ring-arc1"
+        style="filter:drop-shadow(0 0 4px rgba(0,229,204,0.6))"/>
+    </svg>
+  </div>
+  <span class="hud-val" id="dv-mr2" style="font-size:32px">48</span>
+  <div style="font-size:8px;color:rgba(0,229,204,0.4);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px">
+    Data Channel<br>Identification
+  </div>
+</div>
+
+<!-- Bottom-left: binary scroll + tracking target -->
+<div class="hud-txt" id="dp-bl">
+  <span class="hud-label">Tracking Target 07DC9EA1</span>
+  <div id="binary-scroll" style="margin-top:3px"></div>
+</div>
+
+<!-- Canvas — all waveforms and dynamic drawing -->
+<canvas id="hud-canvas"></canvas>
+
+<script>
+var cvs = document.getElementById("hud-canvas");
+var ctx = cvs.getContext("2d");
+var W, H, t = 0;
+
+function resize() {
+  W = cvs.width  = window.innerWidth;
+  H = cvs.height = window.innerHeight;
+}
+resize();
+window.addEventListener("resize", resize);
+
+// ── Teal color helpers ────────────────────────────────────────────────────
+var TC  = "rgba(0,229,204,";
+var TC2 = "#00e5cc";
+
+// ── Binary scroll ─────────────────────────────────────────────────────────
+var bLines = [], bDiv = document.getElementById("binary-scroll");
+var HEX = "0123456789ABCDEFabcdef ";
+function rndLine() {
+  var s = "";
+  for (var i = 0; i < 18; i++) s += HEX[Math.floor(Math.random()*HEX.length)];
+  return s;
+}
+for (var i = 0; i < 10; i++) bLines.push(rndLine());
+setInterval(function() {
+  bLines.shift(); bLines.push(rndLine());
+  bDiv.textContent = bLines.join("\n");
+}, 120);
+
+// ── Animated counters ─────────────────────────────────────────────────────
+function makeCounter(id, init) {
+  return { el: document.getElementById(id), val: init, target: init };
+}
+var counters = [
+  makeCounter("dv-main", 89),
+  makeCounter("dv-33",   33),
+  makeCounter("dv-31",   31),
+  makeCounter("dv-26",   26),
+  makeCounter("dv-mr1",  75),
+  makeCounter("dv-mr2",  48),
+  makeCounter("dv-tc-num", 26),
+];
+setInterval(function() {
+  counters.forEach(function(c) {
+    if (Math.random() < 0.08) c.target = 10 + Math.floor(Math.random() * 90);
+    c.val += (c.target - c.val) * 0.12;
+    if (c.el) c.el.textContent = Math.round(c.val);
+  });
+}, 180);
+
+// ── Animated vertical bars (top-center extract) ───────────────────────────
+var xbH = [60,40,75,50,85,35,65];
+var xbT = xbH.slice();
+setInterval(function() {
+  for (var i = 0; i < xbH.length; i++) {
+    if (Math.random() < 0.25) xbT[i] = 10 + Math.random() * 90;
+    xbH[i] += (xbT[i] - xbH[i]) * 0.1;
+    var el = document.getElementById("xb" + i);
+    if (el) el.style.height = xbH[i].toFixed(1) + "%";
+  }
+}, 80);
+
+// ── Progress ring animation ───────────────────────────────────────────────
+var ringOff = 14;
+setInterval(function() {
+  ringOff = (ringOff + 0.4) % 119;
+  var arc = document.getElementById("ring-arc1");
+  if (arc) arc.setAttribute("stroke-dashoffset", ringOff.toFixed(1));
+}, 30);
+
+// ── Wave oscilloscope data ────────────────────────────────────────────────
+var waves = [
+  // Top-right waveform 1
+  { rx:0.55, ry:0.07, rw:0.43, rh:0.11,
+    freqs:[2.1,4.5], amps:[0.35,0.15], phases:[0,1.2], speeds:[0.028,0.05],
+    color:TC+"0.75)", lw:1.4 },
+  // Top-right waveform 2
+  { rx:0.55, ry:0.21, rw:0.43, rh:0.09,
+    freqs:[3.2,6.0], amps:[0.30,0.12], phases:[0.5,2.0], speeds:[0.022,0.06],
+    color:TC+"0.60)", lw:1.2 },
+];
+
+// Mid-right oscilloscope
+var midOsc = { rx:0.57, ry:0.34, rw:0.39, rh:0.20 };
+
+// Scatter dots (right area)
+var dots = [];
+for (var i = 0; i < 28; i++) {
+  dots.push({
+    bx: 0.72 + Math.random()*0.22,
+    by: 0.50 + Math.random()*0.24,
+    ph: Math.random()*Math.PI*2,
+    r:  1.5 + Math.random()*2.5,
+    sp: 0.008 + Math.random()*0.012
+  });
+}
+
+// Bottom-right bar chart
+var bars = [], barT = [];
+for (var i = 0; i < 9; i++) { var v = 0.2+Math.random()*0.8; bars.push(v); barT.push(v); }
+setInterval(function() {
+  for (var i = 0; i < bars.length; i++) {
+    if (Math.random() < 0.2) barT[i] = 0.08 + Math.random()*0.92;
+    bars[i] += (barT[i]-bars[i])*0.04;
+  }
+}, 60);
+
+// Hex data table
+var hexLines = [];
+function genHex() {
+  var s = "";
+  var hx = "0123456789ABCDEF";
+  for (var c = 0; c < 7; c++) {
+    s += hx[Math.floor(Math.random()*16)];
+    s += hx[Math.floor(Math.random()*16)];
+    if (c < 6) s += " ";
+  }
+  return s;
+}
+for (var i = 0; i < 10; i++) hexLines.push(genHex());
+setInterval(function() {
+  hexLines[Math.floor(Math.random()*hexLines.length)] = genHex();
+}, 200);
+
+// ── Draw helpers ──────────────────────────────────────────────────────────
+function lbl(x, y, txt, sz) {
+  ctx.font = (sz||9)+'px "Courier New"';
+  ctx.fillStyle = TC+"0.40)";
+  ctx.fillText(txt.toUpperCase(), x, y);
+}
+
+// ── Draw waveform strip ───────────────────────────────────────────────────
+function drawWave(w) {
+  var x = w.rx*W, y = w.ry*H, ww = w.rw*W, hh = w.rh*H;
+
+  // background
+  ctx.fillStyle = "rgba(0,20,18,0.35)";
+  ctx.fillRect(x, y, ww, hh);
+  ctx.strokeStyle = TC+"0.12)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, ww, hh);
+
+  // grid
+  for (var i=1;i<4;i++){
+    ctx.beginPath();ctx.strokeStyle=TC+"0.07)";
+    ctx.moveTo(x+i*ww/4,y);ctx.lineTo(x+i*ww/4,y+hh);ctx.stroke();
+  }
+
+  // waveform
+  ctx.beginPath();
+  ctx.strokeStyle = w.color;
+  ctx.lineWidth = w.lw;
+  var N = 250;
+  for (var i=0;i<=N;i++) {
+    var px = x + (i/N)*ww;
+    var val = 0;
+    for (var f=0;f<w.freqs.length;f++) {
+      val += Math.sin(i/N*Math.PI*2*w.freqs[f] + w.phases[f] + t*w.speeds[f]*60) * w.amps[f];
+    }
+    var py = y + hh/2 + val*(hh/2)*0.85;
+    i===0 ? ctx.moveTo(px,py) : ctx.lineTo(px,py);
+  }
+  ctx.shadowBlur=8; ctx.shadowColor=TC2;
+  ctx.stroke();
+  ctx.shadowBlur=0;
+}
+
+// ── Mid oscilloscope ──────────────────────────────────────────────────────
+function drawMidOsc() {
+  var x = midOsc.rx*W, y = midOsc.ry*H, ww = midOsc.rw*W, hh = midOsc.ry*H*0.85;
+
+  ctx.fillStyle="rgba(0,20,18,0.32)";
+  ctx.fillRect(x,y,ww,hh);
+  ctx.strokeStyle=TC+"0.10)";ctx.lineWidth=1;
+  ctx.strokeRect(x,y,ww,hh);
+
+  // inner grid
+  for(var i=1;i<4;i++){
+    ctx.beginPath();ctx.strokeStyle=TC+"0.07)";
+    ctx.moveTo(x+i*ww/4,y);ctx.lineTo(x+i*ww/4,y+hh);ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x,y+i*hh/4);ctx.lineTo(x+ww,y+i*hh/4);ctx.stroke();
+  }
+
+  ctx.beginPath();ctx.strokeStyle=TC+"0.72)";ctx.lineWidth=1.3;
+  var N=280;
+  for(var i=0;i<=N;i++){
+    var px=x+(i/N)*ww;
+    var py=y+hh/2
+      +Math.sin(i/N*Math.PI*3.5+t*0.038*60)*hh*0.22
+      +Math.sin(i/N*Math.PI*7.2+t*0.065*60+0.8)*hh*0.10
+      +Math.sin(i/N*Math.PI*1.2+t*0.018*60+2.1)*hh*0.06;
+    i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+  }
+  ctx.shadowBlur=6;ctx.shadowColor=TC2;
+  ctx.stroke();ctx.shadowBlur=0;
+  lbl(x+4,y+11,"Scanning Data",8);
+}
+
+// ── Scatter ───────────────────────────────────────────────────────────────
+function drawScatter() {
+  dots.forEach(function(d) {
+    var dx = d.bx*W + Math.sin(d.ph+t*d.sp*60)*6;
+    var dy = d.by*H + Math.cos(d.ph*1.4+t*d.sp*50)*5;
+    var a  = 0.35 + 0.45*Math.sin(d.ph+t*0.03*60);
+    ctx.beginPath();
+    ctx.arc(dx,dy,d.r,0,Math.PI*2);
+    ctx.fillStyle=TC+a+")";
+    ctx.shadowBlur=5;ctx.shadowColor=TC2;
+    ctx.fill();ctx.shadowBlur=0;
+  });
+}
+
+// ── Bar chart bottom-right ────────────────────────────────────────────────
+function drawBars() {
+  var bx=0.735*W, by=0.78*H, bw=0.23*W, bh=0.17*H;
+
+  ctx.fillStyle="rgba(0,20,18,0.28)";
+  ctx.fillRect(bx,by,bw,bh);
+  ctx.strokeStyle=TC+"0.10)";ctx.lineWidth=1;
+  ctx.strokeRect(bx,by,bw,bh);
+
+  lbl(bx+4,by-4,"Analysed OK",8);
+
+  var slot=bw/bars.length;
+  bars.forEach(function(v,i){
+    var bX=bx+i*slot+slot*0.15;
+    var barW=slot*0.7;
+    var barH=v*bh*0.88;
+    var bY=by+bh-barH;
+    var grad=ctx.createLinearGradient(0,bY,0,by+bh);
+    grad.addColorStop(0,TC+(0.4+v*0.5)+")");
+    grad.addColorStop(1,TC+"0.08)");
+    ctx.fillStyle=grad;
+    ctx.fillRect(bX,bY,barW,barH);
+  });
+}
+
+// ── Small top-right bar chart ─────────────────────────────────────────────
+var smallBars=[0.5,0.7,0.4,0.8,0.6,0.9,0.3,0.75];
+var smallBarT=smallBars.slice();
+setInterval(function(){
+  for(var i=0;i<smallBars.length;i++){
+    if(Math.random()<0.15) smallBarT[i]=0.1+Math.random()*0.9;
+    smallBars[i]+=(smallBarT[i]-smallBars[i])*0.05;
+  }
+},80);
+
+function drawSmallBars(){
+  var bx=0.87*W, by=0.73*H, bw=0.115*W, bh=0.11*H;
+  ctx.fillStyle="rgba(0,20,18,0.28)";
+  ctx.fillRect(bx,by,bw,bh);
+  ctx.strokeStyle=TC+"0.10)";ctx.lineWidth=1;
+  ctx.strokeRect(bx,by,bw,bh);
+  lbl(bx+2,by-3,"Get Data From",7);
+  var slot=bw/smallBars.length;
+  smallBars.forEach(function(v,i){
+    var bX=bx+i*slot+slot*0.12;
+    var barW=slot*0.76;
+    var barH=v*bh*0.88;
+    var bY=by+bh-barH;
+    ctx.fillStyle=TC+(0.3+v*0.55)+")";
+    ctx.fillRect(bX,bY,barW,barH);
+  });
+}
+
+// ── Hex data table right side ─────────────────────────────────────────────
+function drawHexTable(){
+  var x=0.785*W, y=0.44*H;
+  ctx.font='8px "Courier New"';
+  ctx.fillStyle=TC+"0.32)";
+  hexLines.forEach(function(line,i){
+    ctx.fillText(line,x,y+i*11);
+  });
+}
+
+// ── Analyze labels ────────────────────────────────────────────────────────
+function drawAnalyzeLabels(){
+  // Mid-right labels
+  var x=0.59*W;
+  lbl(x, 0.30*H,"Analysing The",8);
+  lbl(x, 0.30*H+11,"Scanning Data",8);
+  lbl(x, 0.76*H,"Analysed Data",8);
+
+  var x2=0.85*W;
+  lbl(x2, 0.30*H,"Identification",7);
+  lbl(x2, 0.30*H+11,"Ready",7);
+}
+
+// ── Vignette ──────────────────────────────────────────────────────────────
+function drawVignette(){
+  var vg=ctx.createRadialGradient(W/2,H/2,H*0.25,W/2,H/2,H*0.85);
+  vg.addColorStop(0,"transparent");
+  vg.addColorStop(1,"rgba(0,0,0,0.55)");
+  ctx.fillStyle=vg;
+  ctx.fillRect(0,0,W,H);
+}
+
+// ── Corner accent lines ───────────────────────────────────────────────────
+function drawAccentLines(){
+  ctx.strokeStyle=TC+"0.15)";
+  ctx.lineWidth=1;
+  // Top line
+  ctx.beginPath();ctx.moveTo(70,15);ctx.lineTo(W-70,15);ctx.stroke();
+  // Bottom line
+  ctx.beginPath();ctx.moveTo(70,H-15);ctx.lineTo(W-70,H-15);ctx.stroke();
+}
+
+// ── Main animation loop ───────────────────────────────────────────────────
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  drawVignette();
+  drawAccentLines();
+  waves.forEach(drawWave);
+  drawMidOsc();
+  drawScatter();
+  drawBars();
+  drawSmallBars();
+  drawAnalyzeLabels();
+  // Hex table update every 3 frames
+  if(Math.floor(t*60)%3===0) drawHexTable();
+  else drawHexTable();
+  t += 1/60;
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>
