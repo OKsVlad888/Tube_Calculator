@@ -26,7 +26,7 @@ import streamlit.components.v1 as components
 from pathlib import Path
 
 st.set_page_config(
-    page_title="High-Pressure Gas Flow Calculator",
+    page_title="High Pressure Gas Calculator",
     page_icon="💨",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -276,7 +276,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#010a08;font-family:
 <div id="wrapper">
 <div id="panel">
 <div id="alhdr"><span class="ai">&#9888;</span><span class="at" id="at">WARNING</span></div>
-<h1><span class="tri">&#9651;</span>HIGH-PRESSURE GAS FLOW CALCULATOR</h1>
+<div style="position:relative;z-index:1;text-align:center;font-size:13px;font-weight:bold;letter-spacing:4px;color:var(--tc2);text-shadow:0 0 14px var(--gs);margin-bottom:10px;line-height:1.4;text-transform:uppercase;transition:color .35s,text-shadow .35s">אפליקציה זו מיועדת לחישובים ראשוניים והמחשה בלבד ואינה מהווה ייעוץ הנדסי או תחליף לתכנון מקצועי. כל שימוש בתוצאות הינו באחריותו הבלעדית של המשתמש בלבד.</div>
+<h1><span class="tri">&#9651;</span>HIGH PRESSURE GAS CALCULATOR<span class="tri" style="margin-left:7px;margin-right:0">&#9651;</span></h1>
 <div id="body">
 <div class="sr"><label>Gas Type</label>
 <select id="gs2" onchange="rebuild()">
@@ -332,7 +333,7 @@ var WM={
 function evalM(gas,Pi){
   if(Pi>GMAX)return{m:"D",hdr:"ALERT: SAFETY / LIMIT CONDITION",blocked:true,msg:"Risk: Pressure >2001 bar\nExceeds Maximum Limit!"};
   var l=BLK[gas];if(l&&Pi>l.max)return{m:"D",hdr:l.hdr,blocked:true,msg:l.msg};
-  if(WG.indexOf(gas)!==-1)return{m:"W",hdr:"WARNING: PRESSURE LIMIT REACHED",blocked:false};
+  if(WG.indexOf(gas)!==-1)return{m:"W",hdr:"⚠  WARNING: DANGEROUS GAS  ⚠",blocked:false};
   return{m:"N",blocked:false};
 }
 function setM(m,hdr){
