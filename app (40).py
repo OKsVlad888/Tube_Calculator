@@ -354,13 +354,13 @@ function getAllMatches(gas,inP,diam){
   });
   if(!raw.length)return[];
   /* Step 2: sort TIER first (SS/Copper before plastic/galvanized),
-             then PRESSURE ASC (closest to inlet = best match),
-             then DIAMETER ASC (smallest tube within same pressure tier).
-     Pressure is the primary engineering criterion WITHIN each material tier. */
+             then DIAMETER ASC (closest ID to requested diameter = best match),
+             then PRESSURE ASC (smallest pressure margin within same diameter tier).
+     Diameter is the primary engineering criterion WITHIN each material tier. */
   raw.sort(function(a,b){
     var td=tier(a.spec)-tier(b.spec);
     if(td!==0)return td;
-    return(a.max_pressure-b.max_pressure)||(a.id_mm-b.id_mm);
+    return(a.id_mm-b.id_mm)||(a.max_pressure-b.max_pressure);
   });
   /* Step 3: find minimum covering pressure from preferred (tier-0) specs only.
      If no tier-0 spec exists, fall back to tier-1. */
@@ -403,7 +403,7 @@ function sc(gas,inP,diam){
       +"<span style='opacity:.52;font-size:11px'> &nbsp;ID "+t.id_mm.toFixed(2)+" mm &nbsp;\u2502&nbsp; \u2264"+t.max_pressure+" bar"
       +(pLabel?" &nbsp;<em>"+pLabel+"</em>":"")+"</span><br>";
   });
-  return"<div class='spc'><div class='sh'>\u25ba Tube Spec Recommendations&nbsp;<span style='font-size:9px;opacity:.55;font-weight:normal;letter-spacing:1px'>sorted: pressure match first</span>"+badge+"</div>"
+  return"<div class='spc'><div class='sh'>\u25ba Tube Spec Recommendations&nbsp;<span style='font-size:9px;opacity:.55;font-weight:normal;letter-spacing:1px'>sorted: closest diameter match</span>"+badge+"</div>"
     +"<div class='sr2' style='line-height:2.1'>"+specRows+"</div>"
     +"<div style='margin-top:8px;padding:7px 12px;background:rgba(0,229,204,.07);border-left:3px solid var(--tc);border-radius:2px;animation:fi .3s ease both'>"
     +"<span style='font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--lc);opacity:.75'>\u2605 Optimal Tube Size &mdash; best pressure match</span><br>"
@@ -459,6 +459,7 @@ function calc(){
     }else{var r=calcO(Pi2,Tc,L,D,Q,gas);diam=D;inP=Pi2;line="Estimated Outlet Pressure: <strong>"+r.toFixed(2)+" bar</strong>";}
     var spec=lk(gas,inP,diam);var pct=cf2(gas,inP,diam,spec);
     if(th.m==="N"){rn.innerHTML="<div class='rbox ok'><div class='rt'>"+line+"</div></div>"+sc(gas,inP,diam);rc.innerHTML="";}
+    else if(th.m==="W"){rn.innerHTML="<div class='rbox ok'><div class='rt'>"+line+"</div></div>"+sc(gas,inP,diam);rc.innerHTML="";}
     else{var allM=getAllMatches(gas,inP,diam);var seen3={},specs3=[];allM.forEach(function(r){if(!seen3[r.spec]){seen3[r.spec]=true;specs3.push(r.spec);}});var specStr3=specs3.length?specs3.join(', '):'N/A';rn.innerHTML="";rc.innerHTML="<div style='font-size:13px;color:var(--tc2);line-height:1.85'>"+line+"<br>Tube Spec: <strong>"+specStr3+"</strong><br>"+(spec?"Optimal: <strong>"+ft(spec.tube_od_w)+"<\/strong> <span style='font-size:11px;opacity:.7'>(ID "+spec.id_mm.toFixed(2)+" mm)<\/span>":"")+"<\/div>";}
     showC(pct);
   }catch(e){document.getElementById("rn").innerHTML="<div class='rbox er'>\u26a0 "+e.message+"</div>";document.getElementById("rc").innerHTML="";}
